@@ -1,10 +1,11 @@
 {
   "domain": "mijn_ista",
   "name": "ista Nederland (mijn.ista.nl)",
-  "version": "1.0.0",
   "codeowners": ["@aalaei"],
+  "dependencies": [],
   "documentation": "https://github.com/aalaei/ha-mijn-ista",
   "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/aalaei/ha-mijn-ista/issues",
   "requirements": [],
-  "dependencies": []
+  "version": "1.0.0"
 }
