@@ -2,6 +2,7 @@
   "domain": "mijn_ista",
   "name": "ista Nederland (mijn.ista.nl)",
   "codeowners": ["@aalaei"],
+  "config_flow": true,
   "dependencies": [],
   "documentation": "https://github.com/aalaei/ha-mijn-ista",
   "iot_class": "cloud_polling",
