@@ -1,0 +1,10 @@
+{
+  "domain": "mijn_ista",
+  "name": "ista Nederland (mijn.ista.nl)",
+  "version": "1.0.0",
+  "codeowners": [],
+  "documentation": "https://github.com/Ludy87/ecotrend-ista",
+  "iot_class": "cloud_polling",
+  "requirements": [],
+  "dependencies": []
+}
