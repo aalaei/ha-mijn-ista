@@ -307,24 +307,34 @@ def _build_sensors(
                     )
                 )
 
-    # ── average temperature (per property) ──────────────────────────────────
+    # ── average temperature (per billing period, from KNMI via ista) ────────
     sensors.append(
         MijnIstaSensor(
             coordinator, cuid,
-            "avg_temp",
-            "Average Temperature",
+            "avg_temp_current_period",
+            "Average Temperature Current Period",
             UnitOfTemperature.CELSIUS,
             SensorDeviceClass.TEMPERATURE,
             SensorStateClass.MEASUREMENT,
-            value_fn=lambda c: c.monthly[0].avg_temp if c.monthly else None,
+            value_fn=lambda c: c.cur_period_temp,
             attrs_fn=lambda c: {
-                "month": f"{c.monthly[0].year}-{c.monthly[0].month:02d}"
-                if c.monthly else None,
-                "temperature_history": [
+                "monthly_history": [
                     {"year": me.year, "month": me.month, "avg_temp": me.avg_temp}
                     for me in c.monthly[:24]
+                    if me.avg_temp is not None
                 ],
-            } if c.monthly else {},
+            },
+        )
+    )
+    sensors.append(
+        MijnIstaSensor(
+            coordinator, cuid,
+            "avg_temp_previous_period",
+            "Average Temperature Previous Period",
+            UnitOfTemperature.CELSIUS,
+            SensorDeviceClass.TEMPERATURE,
+            SensorStateClass.MEASUREMENT,
+            value_fn=lambda c: c.prev_period_temp,
         )
     )
 
