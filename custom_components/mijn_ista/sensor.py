@@ -14,7 +14,7 @@ from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 
-from .const import DOMAIN, MANUFACTURER
+from .const import DOMAIN, MANUFACTURER, SERVICE_NAME_TRANSLATIONS
 from .coordinator import CustomerData, MijnIstaCoordinator
 
 _LOGGER = logging.getLogger(__name__)
@@ -34,6 +34,13 @@ _DEVICE_CLASS_MAP: dict[str, SensorDeviceClass | None] = {
     "m3": SensorDeviceClass.WATER,
     "m³": SensorDeviceClass.WATER,
 }
+
+
+def _translate_service(description: str, language: str) -> str:
+    """Return English service name when language is 'en', otherwise pass through."""
+    if language == "en":
+        return SERVICE_NAME_TRANSLATIONS.get(description, description)
+    return description
 
 
 def _ha_unit(api_unit: str) -> str | None:
@@ -126,13 +133,14 @@ def _build_sensors(
     """Build the complete sensor list for one property (Cuid)."""
     sensors: list[MijnIstaSensor] = []
     svc_by_id = {s.id: s for s in customer.services}
+    lang = coordinator.language
 
     # ── annual sensors (per service) ────────────────────────────────────────
     for sid, annual in customer.annual.items():
         svc = svc_by_id.get(sid)
         unit = _ha_unit(svc.unit) if svc else None
         dc = _ha_device_class(svc.unit) if svc else None
-        label = svc.description if svc else f"Service {sid}"
+        label = _translate_service(svc.description, lang) if svc else f"Service {sid}"
 
         # Current-year total
         sensors.append(
@@ -217,7 +225,7 @@ def _build_sensors(
             svc = svc_by_id.get(sid)
             unit = _ha_unit(svc.unit) if svc else None
             dc = _ha_device_class(svc.unit) if svc else None
-            label = svc.description if svc else f"Service {sid}"
+            label = _translate_service(svc.description, lang) if svc else f"Service {sid}"
 
             # Monthly total (latest month, prior months in attributes)
             sensors.append(

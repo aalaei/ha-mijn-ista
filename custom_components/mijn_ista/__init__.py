@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .api import MijnIstaAPI
-from .const import DOMAIN
+from .const import CONF_LANGUAGE, DEFAULT_LANGUAGE, DOMAIN
 from .coordinator import MijnIstaCoordinator
 
 PLATFORMS = [Platform.SENSOR]
@@ -21,10 +21,12 @@ _LOGGER = logging.getLogger(__name__)
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     """Set up mijn.ista.nl from a config entry."""
     session = async_get_clientsession(hass)
+    lang = entry.data.get(CONF_LANGUAGE, DEFAULT_LANGUAGE)
     api = MijnIstaAPI(
         session,
         entry.data[CONF_USERNAME],
         entry.data[CONF_PASSWORD],
+        lang="en-GB" if lang == "en" else "nl-NL",
     )
     coordinator = MijnIstaCoordinator(hass, entry, api)
     await coordinator.async_config_entry_first_refresh()

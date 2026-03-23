@@ -5,14 +5,15 @@
         "title": "mijn.ista.nl — ista Nederland",
         "description": "Verbind je mijn.ista.nl account om verbruikssensoren voor energie, elektriciteit en water beschikbaar te maken.",
         "data": {
-          "username": "E-mailadres",
+          "username": "Gebruikersnaam of e-mailadres",
           "password": "Wachtwoord",
+          "language": "Taal",
           "update_interval": "Update-interval (uren)"
         }
       }
     },
     "error": {
-      "invalid_auth": "Ongeldig e-mailadres of wachtwoord.",
+      "invalid_auth": "Ongeldige gebruikersnaam/e-mailadres of wachtwoord.",
       "cannot_connect": "Kan geen verbinding maken met mijn.ista.nl. Controleer je internetverbinding.",
       "unknown": "Er is een onverwachte fout opgetreden."
     },
@@ -27,6 +28,14 @@
         "data": {
           "update_interval": "Update-interval (uren)"
         }
+      }
+    }
+  },
+  "selector": {
+    "language": {
+      "options": {
+        "en": "English",
+        "nl": "Nederlands"
       }
     }
   }

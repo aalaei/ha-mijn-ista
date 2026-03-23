@@ -14,7 +14,7 @@ from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import MijnIstaAPI, MijnIstaAuthError, MijnIstaConnectionError
-from .const import CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL, DOMAIN
+from .const import CONF_LANGUAGE, CONF_UPDATE_INTERVAL, DEFAULT_LANGUAGE, DEFAULT_UPDATE_INTERVAL, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -269,6 +269,7 @@ class MijnIstaCoordinator(DataUpdateCoordinator):
         api: MijnIstaAPI,
     ) -> None:
         self.api = api
+        self.language: str = entry.data.get(CONF_LANGUAGE, DEFAULT_LANGUAGE)
         super().__init__(
             hass=hass,
             logger=_LOGGER,

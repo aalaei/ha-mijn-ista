@@ -5,14 +5,15 @@
         "title": "mijn.ista.nl — ista Nederland",
         "description": "Connect your mijn.ista.nl account to expose energy, electricity and water consumption sensors.",
         "data": {
-          "username": "Email address",
+          "username": "Username or email",
           "password": "Password",
+          "language": "Language",
           "update_interval": "Update interval (hours)"
         }
       }
     },
     "error": {
-      "invalid_auth": "Invalid email address or password.",
+      "invalid_auth": "Invalid username/email or password.",
       "cannot_connect": "Could not connect to mijn.ista.nl. Check your internet connection.",
       "unknown": "An unexpected error occurred."
     },
@@ -27,6 +28,14 @@
         "data": {
           "update_interval": "Update interval (hours)"
         }
+      }
+    }
+  },
+  "selector": {
+    "language": {
+      "options": {
+        "en": "English",
+        "nl": "Nederlands"
       }
     }
   }

@@ -15,24 +15,34 @@ from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
     NumberSelectorMode,
+    SelectSelector,
+    SelectSelectorConfig,
+    SelectSelectorMode,
     TextSelector,
     TextSelectorConfig,
     TextSelectorType,
 )
 
 from .api import MijnIstaAPI, MijnIstaAuthError, MijnIstaConnectionError
-from .const import CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL, DOMAIN
+from .const import CONF_LANGUAGE, CONF_UPDATE_INTERVAL, DEFAULT_LANGUAGE, DEFAULT_UPDATE_INTERVAL, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
 _STEP_USER_SCHEMA = vol.Schema(
     {
         vol.Required(CONF_USERNAME): TextSelector(
-            TextSelectorConfig(type=TextSelectorType.EMAIL, autocomplete="username")
+            TextSelectorConfig(type=TextSelectorType.TEXT, autocomplete="username")
         ),
         vol.Required(CONF_PASSWORD): TextSelector(
             TextSelectorConfig(
                 type=TextSelectorType.PASSWORD, autocomplete="current-password"
+            )
+        ),
+        vol.Required(CONF_LANGUAGE, default=DEFAULT_LANGUAGE): SelectSelector(
+            SelectSelectorConfig(
+                options=["en", "nl"],
+                mode=SelectSelectorMode.LIST,
+                translation_key="language",
             )
         ),
         vol.Required(CONF_UPDATE_INTERVAL, default=DEFAULT_UPDATE_INTERVAL): NumberSelector(
@@ -89,6 +99,7 @@ class MijnIstaConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
                     data={
                         CONF_USERNAME: user_input[CONF_USERNAME],
                         CONF_PASSWORD: user_input[CONF_PASSWORD],
+                        CONF_LANGUAGE: user_input[CONF_LANGUAGE],
                     },
                     options={
                         CONF_UPDATE_INTERVAL: int(user_input[CONF_UPDATE_INTERVAL]),
