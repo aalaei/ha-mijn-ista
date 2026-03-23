@@ -83,15 +83,12 @@ class MijnIstaSensor(CoordinatorEntity, SensorEntity):
         data: CustomerData | None = (
             self.coordinator.data.get(self._cuid) if self.coordinator.data else None
         )
-        if data:
-            display_name = f"ista NL — {data.city} {data.zip_code}"
-            model = ", ".join(s.meter_type for s in data.services if s.meter_type) or "mijn.ista.nl"
-        else:
-            display_name = f"ista NL — {self._cuid[:8]}"
-            model = "mijn.ista.nl"
+        # Address goes in model so it's visible in the device panel but
+        # never lands in entity IDs (which are derived from device name).
+        model = f"{data.address}, {data.zip_code} {data.city}" if data else self._cuid[:8]
         return DeviceInfo(
             identifiers={(DOMAIN, self._cuid)},
-            name=display_name,
+            name="ista NL",
             manufacturer=MANUFACTURER,
             model=model,
             configuration_url="https://mijn.ista.nl",
@@ -147,7 +144,7 @@ def _build_sensors(
             MijnIstaSensor(
                 coordinator, cuid,
                 f"svc{sid}_annual_current",
-                f"{label} Annual Current",
+                f"{label} Current",
                 unit, dc, SensorStateClass.TOTAL,
                 value_fn=lambda c, s=sid: c.annual[s].total_now if s in c.annual else None,
                 attrs_fn=lambda c, s=sid: {
@@ -165,7 +162,7 @@ def _build_sensors(
             MijnIstaSensor(
                 coordinator, cuid,
                 f"svc{sid}_annual_previous",
-                f"{label} Annual Previous",
+                f"{label} Previous",
                 unit, dc, SensorStateClass.TOTAL,
                 value_fn=lambda c, s=sid: c.annual[s].total_previous if s in c.annual else None,
                 attrs_fn=lambda c, s=sid: {
@@ -180,7 +177,7 @@ def _build_sensors(
             MijnIstaSensor(
                 coordinator, cuid,
                 f"svc{sid}_annual_diff_pct",
-                f"{label} Annual Change",
+                f"{label} Change",
                 PERCENTAGE, None, SensorStateClass.MEASUREMENT,
                 value_fn=lambda c, s=sid: c.annual[s].diff_pct if s in c.annual else None,
             )
@@ -192,7 +189,7 @@ def _build_sensors(
                 MijnIstaSensor(
                     coordinator, cuid,
                     f"svc{sid}_building_avg_annual",
-                    f"{label} Building Average Annual",
+                    f"{label} Building Avg",
                     unit, dc, SensorStateClass.MEASUREMENT,
                     value_fn=lambda c, s=sid: c.building_averages.get(s),
                 )
@@ -204,7 +201,7 @@ def _build_sensors(
                 MijnIstaSensor(
                     coordinator, cuid,
                     f"svc{sid}_dev{meter.meter_id}_annual",
-                    f"{label} Meter {meter.serial_nr} Annual",
+                    f"{label} {meter.serial_nr}",
                     unit, dc, SensorStateClass.TOTAL,
                     value_fn=lambda c, s=sid, mid=meter.meter_id: next(
                         (m.c_value for m in c.annual[s].cur_meters if m.meter_id == mid),
@@ -232,7 +229,7 @@ def _build_sensors(
                 MijnIstaSensor(
                     coordinator, cuid,
                     f"svc{sid}_month_latest",
-                    f"{label} Current Month",
+                    f"{label} Month",
                     unit, dc, SensorStateClass.TOTAL,
                     value_fn=lambda c, s=sid: (
                         c.monthly[0].services[s].total_consumption
@@ -266,7 +263,7 @@ def _build_sensors(
                 MijnIstaSensor(
                     coordinator, cuid,
                     f"svc{sid}_month_building_avg",
-                    f"{label} Month Building Average",
+                    f"{label} Month Avg",
                     unit, dc, SensorStateClass.MEASUREMENT,
                     value_fn=lambda c, s=sid: (
                         c.monthly[0].services[s].building_average
@@ -286,7 +283,7 @@ def _build_sensors(
                     MijnIstaSensor(
                         coordinator, cuid,
                         f"svc{sid}_dev{dev.meter_id}_month",
-                        f"{label} Meter {dev.serial_nr} Month",
+                        f"{label} {dev.serial_nr} Month",
                         unit, dc, SensorStateClass.TOTAL,
                         value_fn=lambda c, s=sid, did=dev.meter_id: next(
                             (
@@ -312,7 +309,7 @@ def _build_sensors(
         MijnIstaSensor(
             coordinator, cuid,
             "avg_temp_current_period",
-            "Average Temperature Current Period",
+            "Temperature",
             UnitOfTemperature.CELSIUS,
             SensorDeviceClass.TEMPERATURE,
             SensorStateClass.MEASUREMENT,
@@ -330,7 +327,7 @@ def _build_sensors(
         MijnIstaSensor(
             coordinator, cuid,
             "avg_temp_previous_period",
-            "Average Temperature Previous Period",
+            "Temperature Previous",
             UnitOfTemperature.CELSIUS,
             SensorDeviceClass.TEMPERATURE,
             SensorStateClass.MEASUREMENT,
