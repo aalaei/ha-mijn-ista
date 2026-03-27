@@ -1,37 +1,162 @@
 # ista Nederland — mijn.ista.nl
 
 [![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://github.com/hacs/integration)
+[![GitHub release](https://img.shields.io/github/v/release/aalaei/ha-mijn-ista)](https://github.com/aalaei/ha-mijn-ista/releases)
+[![License](https://img.shields.io/github/license/aalaei/ha-mijn-ista)](LICENSE)
 
-Home Assistant integration for [mijn.ista.nl](https://mijn.ista.nl) — the Dutch ista energy monitoring portal.
+Home Assistant integration for [mijn.ista.nl](https://mijn.ista.nl) — the Dutch ista energy monitoring portal. Exposes your heating, hot/cold water, electricity, and gas consumption as sensors you can track, automate, and display on your dashboard.
+
+---
+
+## Quick install
+
+**Step 1 — Add this repository to HACS:**
+
+[![Open your Home Assistant instance and open a repository inside the Home Assistant Community Store.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=aalaei&repository=ha-mijn-ista&category=integration)
+
+**Step 2 — Set up the integration:**
+
+[![Open your Home Assistant instance and start setting up a new integration.](https://my.home-assistant.io/badges/config_flow_start.svg)](https://my.home-assistant.io/redirect/config_flow_start/?domain=mijn_ista)
+
+> Both buttons require the [My Home Assistant](https://my.home-assistant.io/) companion service to be configured.
+
+---
 
 ## What it does
 
-Exposes your heating, electricity, and cold water consumption as Home Assistant sensors, with:
+Reads your consumption data from mijn.ista.nl and creates sensors in Home Assistant for every service (Heating, Electricity, Hot water, Cold water, Gas — whatever your property has):
 
-- **Annual totals** — current year, previous year, year-over-year change %
-- **Monthly breakdown** — per service, with building averages and prior months in attributes
-- **Per physical meter** — individual readings for each device on your property
-- **Building averages** — compare your usage against your building's average
-- **Average temperature** — monthly outdoor temperature used for heating context
+| Sensor | What it shows |
+|---|---|
+| `{Service} Current` | Annual total for the current billing year |
+| `{Service} Previous` | Annual total for the previous billing year |
+| `{Service} Change` | Year-over-year change in % |
+| `{Service} Building Avg` | Average consumption across your building |
+| `{Service} {serial}` | Annual reading for one physical meter |
+| `{Service} Month` | Latest month's total (prior months in attributes) |
+| `{Service} Month Avg` | Latest month's building average |
+| `{Service} {serial} Month` | Latest month for one physical meter |
+| `Temperature` | Current billing period avg outdoor temperature (KNMI) |
+| `Temperature Previous` | Previous billing period avg outdoor temperature |
 
-## Installation via HACS
+All sensors are grouped under a single **ista NL** device per property in the Home Assistant device registry.
 
-1. In HACS → Integrations → ⋮ → Custom repositories
-2. Add `https://github.com/aalaei/mijn-ista` with category **Integration**
-3. Install **ista Nederland (mijn.ista.nl)**
-4. Restart Home Assistant
-5. Add integration: Settings → Devices & Services → Add Integration → search **ista Nederland**
+---
+
+## Requirements
+
+- A valid [mijn.ista.nl](https://mijn.ista.nl) account (Dutch ista portal)
+- Home Assistant 2023.x or newer
+- [HACS](https://hacs.xyz/) (recommended) or manual installation
+
+---
+
+## Installation
+
+### Option A — HACS (recommended)
+
+1. Click the **Add repository** button above, or go to **HACS → Integrations → ⋮ → Custom repositories** and add:
+   ```
+   https://github.com/aalaei/ha-mijn-ista
+   ```
+   with category **Integration**.
+2. Search for **ista Nederland (mijn.ista.nl)** in HACS and install it.
+3. Restart Home Assistant.
+4. Click the **Set up integration** button above, or go to **Settings → Devices & Services → Add Integration** and search for **ista Nederland**.
+
+### Option B — Manual
+
+1. Download the [latest release](https://github.com/aalaei/ha-mijn-ista/releases/latest).
+2. Copy the `custom_components/mijn_ista/` folder into your `<config>/custom_components/` directory.
+3. Restart Home Assistant.
+4. Go to **Settings → Devices & Services → Add Integration** and search for **ista Nederland**.
+
+---
 
 ## Configuration
 
+Fill in the following fields when adding the integration:
+
 | Field | Description |
 |---|---|
-| Email | Your mijn.ista.nl login email |
-| Password | Your mijn.ista.nl password |
-| Update interval | How often to poll the API (1–24 hours, default 24) |
+| **Email** | Your mijn.ista.nl login e-mail address |
+| **Password** | Your mijn.ista.nl password |
+| **Language** | `English` or `Nederlands` — affects sensor names |
+| **Update interval** | How often to poll the API (1–24 hours, default 24 h) |
 
-## Notes
+> Credentials are validated against the live API before the entry is created.
 
-- Data on mijn.ista.nl updates every 3 days or monthly depending on your meter type
-- No costs (EUR) sensors — the NL portal API does not expose billing amounts
-- This integration is separate from the German [ecotrend-ista](https://github.com/Ludy87/ecotrend-ista) integration
+The update interval can be changed later via **Settings → Devices & Services → ista Nederland → Configure** without re-adding the integration.
+
+---
+
+## Sensors in detail
+
+### Annual sensors
+
+The annual sensors show consumption for the current and previous billing year. The `Change` sensor is the relative difference in percent (positive = more consumption, negative = less).
+
+Attributes on `{Service} Current` include the individual meter readings that make up the total.
+
+### Monthly sensors
+
+The `{Service} Month` sensor holds the most recent month's value. All prior months are available as attributes in the format:
+
+```
+attributes:
+  2024-01: 42.3
+  2024-02: 38.1
+  ...
+```
+
+### Temperature sensors
+
+Outdoor temperature data comes from KNMI (Royal Netherlands Meteorological Institute) via the ista API. The value for the most recent month may be `unavailable` because KNMI data is finalized with a delay.
+
+### Building averages
+
+Building average sensors show the average consumption for your entire building or complex during the same period. Useful for comparing your own usage against your neighbours.
+
+---
+
+## Notes and limitations
+
+- **Update frequency**: mijn.ista.nl data is updated every 3 days for smart meters, or monthly for traditional meters. Setting the poll interval shorter than 24 hours will not produce more up-to-date data.
+- **No cost sensors**: The NL portal API does not expose billing amounts in euros — only consumption units (GJ, kWh, m³, etc.).
+- **Dutch API**: Service names returned by the API are always in Dutch. When language is set to English, the integration translates them client-side (Verwarming → Heating, Warm water → Hot water, etc.). Unknown service names are passed through as-is.
+- **Single property**: If your account has multiple properties (Cuid), each creates its own ista NL device.
+- **German ista**: This integration is for the Dutch portal only. For the German ista portal, use the [ecotrend-ista](https://github.com/Ludy87/ecotrend-ista) integration.
+
+---
+
+## Troubleshooting
+
+| Symptom | Likely cause |
+|---|---|
+| Integration fails to set up | Wrong credentials — verify by logging in at mijn.ista.nl |
+| All sensors unavailable | API unreachable or account suspended |
+| Temperature sensor unavailable | KNMI data not yet finalized for the latest month — normal |
+| Sensor values stale | mijn.ista.nl data updates every 3 days at most |
+
+Enable debug logging to capture API responses:
+
+```yaml
+# configuration.yaml
+logger:
+  default: warning
+  logs:
+    custom_components.mijn_ista: debug
+```
+
+---
+
+## Contributing
+
+Bug reports and pull requests are welcome at [github.com/aalaei/ha-mijn-ista](https://github.com/aalaei/ha-mijn-ista/issues).
+
+Before submitting a PR, run:
+
+```bash
+ruff check --fix custom_components/
+ruff format custom_components/
+```
