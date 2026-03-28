@@ -11,9 +11,6 @@ DEVICE_NAME: Final = "mijn.ista.nl"
 DEFAULT_UPDATE_INTERVAL: Final = 24  # hours
 CONF_UPDATE_INTERVAL: Final = "update_interval"
 
-CONF_LANGUAGE: Final = "language"
-DEFAULT_LANGUAGE: Final = "en"
-
 # Client-side translation for service names returned by the API in Dutch
 SERVICE_NAME_TRANSLATIONS: Final[dict[str, str]] = {
     "Verwarming": "Heating",

@@ -14,7 +14,7 @@ from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import MijnIstaAPI, MijnIstaAuthError, MijnIstaConnectionError
-from .const import CONF_LANGUAGE, CONF_UPDATE_INTERVAL, DEFAULT_LANGUAGE, DEFAULT_UPDATE_INTERVAL, DOMAIN
+from .const import CONF_UPDATE_INTERVAL, DEFAULT_UPDATE_INTERVAL, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -114,7 +114,9 @@ class MonthEntry:
     year: int
     month: int
     avg_temp: float
-    services: dict[int, MonthServiceData] = field(default_factory=dict)  # keyed by service_id
+    services: dict[int, MonthServiceData] = field(
+        default_factory=dict
+    )  # keyed by service_id
 
 
 @dataclass
@@ -138,11 +140,11 @@ class CustomerData:
     date_start: str
     services: list[ServiceInfo]
     billing_periods: list[dict[str, Any]]
-    annual: dict[int, AnnualSummary]       # keyed by service_id
-    monthly: list[MonthEntry]              # newest first
-    building_averages: dict[int, float]    # service_id → NormalizedValue
-    cur_period_temp: float | None          # avg outdoor temp for current billing period
-    prev_period_temp: float | None         # avg outdoor temp for previous billing period
+    annual: dict[int, AnnualSummary]  # keyed by service_id
+    monthly: list[MonthEntry]  # newest first
+    building_averages: dict[int, float]  # service_id → NormalizedValue
+    cur_period_temp: float | None  # avg outdoor temp for current billing period
+    prev_period_temp: float | None  # avg outdoor temp for previous billing period
 
 
 # ── parsing helpers (pure functions, easy to unit-test) ─────────────────────
@@ -230,7 +232,8 @@ def _parse_customer(
             MonthEntry(
                 year=mc["y"],
                 month=mc["m"],
-                avg_temp=mc.get("at") or None,  # null/0 → None (KNMI data not yet available)
+                avg_temp=mc.get("at")
+                or None,  # null/0 → None (KNMI data not yet available)
                 services=svc_map,
             )
         )
@@ -244,7 +247,9 @@ def _parse_customer(
     billing_periods = cur.get("BillingPeriods", [])
     sorted_periods = sorted(billing_periods, key=lambda p: p.get("y", 0), reverse=True)
     cur_period_temp = sorted_periods[0].get("ta") or None if sorted_periods else None
-    prev_period_temp = sorted_periods[1].get("ta") or None if len(sorted_periods) > 1 else None
+    prev_period_temp = (
+        sorted_periods[1].get("ta") or None if len(sorted_periods) > 1 else None
+    )
 
     return CustomerData(
         cuid=cus["Cuid"],
@@ -279,7 +284,6 @@ class MijnIstaCoordinator(DataUpdateCoordinator):
         api: MijnIstaAPI,
     ) -> None:
         self.api = api
-        self.language: str = entry.data.get(CONF_LANGUAGE, DEFAULT_LANGUAGE)
         super().__init__(
             hass=hass,
             logger=_LOGGER,

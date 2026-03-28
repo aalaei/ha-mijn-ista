@@ -7,8 +7,15 @@
         "data": {
           "username": "Username or email",
           "password": "Password",
-          "language": "Language",
           "update_interval": "Update interval (hours)"
+        }
+      },
+      "reconfigure": {
+        "title": "Update credentials",
+        "description": "Enter new credentials for your mijn.ista.nl account.",
+        "data": {
+          "username": "Username or email",
+          "password": "Password"
         }
       }
     },
@@ -18,7 +25,8 @@
       "unknown": "An unexpected error occurred."
     },
     "abort": {
-      "already_configured": "This account is already configured."
+      "already_configured": "This account is already configured.",
+      "reconfigure_successful": "Credentials updated successfully."
     }
   },
   "options": {
@@ -28,14 +36,6 @@
         "data": {
           "update_interval": "Update interval (hours)"
         }
-      }
-    }
-  },
-  "selector": {
-    "language": {
-      "options": {
-        "en": "English",
-        "nl": "Nederlands"
       }
     }
   }

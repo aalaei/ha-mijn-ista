@@ -7,8 +7,15 @@
         "data": {
           "username": "Gebruikersnaam of e-mailadres",
           "password": "Wachtwoord",
-          "language": "Taal",
           "update_interval": "Update-interval (uren)"
+        }
+      },
+      "reconfigure": {
+        "title": "Inloggegevens bijwerken",
+        "description": "Voer nieuwe inloggegevens in voor je mijn.ista.nl account.",
+        "data": {
+          "username": "Gebruikersnaam of e-mailadres",
+          "password": "Wachtwoord"
         }
       }
     },
@@ -18,7 +25,8 @@
       "unknown": "Er is een onverwachte fout opgetreden."
     },
     "abort": {
-      "already_configured": "Dit account is al geconfigureerd."
+      "already_configured": "Dit account is al geconfigureerd.",
+      "reconfigure_successful": "Inloggegevens zijn bijgewerkt."
     }
   },
   "options": {
@@ -28,14 +36,6 @@
         "data": {
           "update_interval": "Update-interval (uren)"
         }
-      }
-    }
-  },
-  "selector": {
-    "language": {
-      "options": {
-        "en": "English",
-        "nl": "Nederlands"
       }
     }
   }
