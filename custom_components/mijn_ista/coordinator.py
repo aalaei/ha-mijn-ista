@@ -237,6 +237,9 @@ def _parse_customer(
                 services=svc_map,
             )
         )
+    # API returns months in unspecified order; sort newest-first so index 0
+    # is always the most recent entry (even if it has empty ServiceConsumptions).
+    monthly.sort(key=lambda m: (m.year, m.month), reverse=True)
 
     building_averages: dict[int, float] = {
         a["BillingServiceId"]: a.get("NormalizedValue", 0.0)

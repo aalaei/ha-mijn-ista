@@ -70,6 +70,13 @@ def _parse_dt(date_str: str) -> datetime | None:
     return dt_util.as_utc(dt) if dt else None
 
 
+def _find_month(
+    monthly: list, service_id: int
+):
+    """Return the most recent MonthEntry that has data for service_id."""
+    return next((me for me in monthly if service_id in me.services), None)
+
+
 class MijnIstaSensor(CoordinatorEntity, SensorEntity):
     """A single mijn.ista.nl sensor backed by MijnIstaCoordinator."""
 
@@ -315,135 +322,136 @@ def _build_sensors(
                 )
             )
 
-    # ── monthly sensors (per service, based on latest month entry) ──────────
-    if customer.monthly:
-        latest = customer.monthly[0]
+    # ── monthly sensors (per service) ───────────────────────────────────────
+    # Scan all months newest-first; collect the first (most recent) MonthServiceData
+    # per service so sensor creation is not blocked by an empty in-progress month.
+    monthly_services: dict[int, Any] = {}  # sid → MonthServiceData
+    for me in customer.monthly:
+        for sid, msd in me.services.items():
+            if sid not in monthly_services:
+                monthly_services[sid] = msd
 
-        for sid, month_svc in latest.services.items():
-            svc = svc_by_id.get(sid)
-            unit = _ha_unit(svc.unit) if svc else None
-            dc = _ha_device_class(svc.unit) if svc else None
-            label = (
-                _translate_service(svc.description, ha_lang)
-                if svc
-                else f"Service {sid}"
+    for sid, month_svc in monthly_services.items():
+        svc = svc_by_id.get(sid)
+        unit = _ha_unit(svc.unit) if svc else None
+        dc = _ha_device_class(svc.unit) if svc else None
+        label = (
+            _translate_service(svc.description, ha_lang)
+            if svc
+            else f"Service {sid}"
+        )
+
+        # Monthly total (most recent month with data, prior months in attributes)
+        sensors.append(
+            MijnIstaSensor(
+                coordinator,
+                cuid,
+                f"svc{sid}_month_latest",
+                f"{label} Month",
+                unit,
+                dc,
+                SensorStateClass.TOTAL,
+                value_fn=lambda c, s=sid: (
+                    me.services[s].total_consumption
+                    if (me := _find_month(c.monthly, s)) is not None
+                    else None
+                ),
+                attrs_fn=lambda c, s=sid: (
+                    {
+                        "month": f"{me.year}-{me.month:02d}",
+                        "building_average": me.services[s].building_average,
+                        "has_approximation": me.services[s].has_approximation,
+                        "prior_months": [
+                            {
+                                "year": entry.year,
+                                "month": entry.month,
+                                "consumption": entry.services[s].total_consumption
+                                if s in entry.services
+                                else None,
+                                "building_average": entry.services[s].building_average
+                                if s in entry.services
+                                else None,
+                            }
+                            for entry in c.monthly
+                            if not (entry.year == me.year and entry.month == me.month)
+                        ][:12],
+                    }
+                    if (me := _find_month(c.monthly, s)) is not None
+                    else {}
+                ),
+                last_reset_fn=lambda c, s=sid: (
+                    datetime(me.year, me.month, 1, tzinfo=timezone.utc)
+                    if (me := _find_month(c.monthly, s)) is not None
+                    else None
+                ),
             )
+        )
 
-            # Monthly total (latest month, prior months in attributes)
+        # Monthly building average
+        sensors.append(
+            MijnIstaSensor(
+                coordinator,
+                cuid,
+                f"svc{sid}_month_building_avg",
+                f"{label} Month Avg",
+                unit,
+                dc,
+                SensorStateClass.MEASUREMENT,
+                value_fn=lambda c, s=sid: (
+                    me.services[s].building_average
+                    if (me := _find_month(c.monthly, s)) is not None
+                    else None
+                ),
+                attrs_fn=lambda c, s=sid: (
+                    {"month": f"{me.year}-{me.month:02d}"}
+                    if (me := _find_month(c.monthly, s)) is not None
+                    else {}
+                ),
+            )
+        )
+
+        # Per physical meter, latest month
+        for dev in month_svc.device_consumptions:
             sensors.append(
                 MijnIstaSensor(
                     coordinator,
                     cuid,
-                    f"svc{sid}_month_latest",
-                    f"{label} Month",
+                    f"svc{sid}_dev{dev.meter_id}_month",
+                    f"{label} {dev.serial_nr} Month",
                     unit,
                     dc,
                     SensorStateClass.TOTAL,
-                    value_fn=lambda c, s=sid: (
-                        c.monthly[0].services[s].total_consumption
-                        if c.monthly and s in c.monthly[0].services
-                        else None
-                    ),
-                    attrs_fn=lambda c, s=sid: {
-                        "month": f"{c.monthly[0].year}-{c.monthly[0].month:02d}"
-                        if c.monthly
-                        else None,
-                        "building_average": c.monthly[0].services[s].building_average
-                        if c.monthly and s in c.monthly[0].services
-                        else None,
-                        "has_approximation": c.monthly[0].services[s].has_approximation
-                        if c.monthly and s in c.monthly[0].services
-                        else None,
-                        "prior_months": [
-                            {
-                                "year": me.year,
-                                "month": me.month,
-                                "consumption": me.services[s].total_consumption
-                                if s in me.services
-                                else None,
-                                "building_average": me.services[s].building_average
-                                if s in me.services
-                                else None,
-                            }
-                            for me in c.monthly[1:13]
-                        ],
-                    }
-                    if c.monthly
-                    else {},
-                    last_reset_fn=lambda c, s=sid: datetime(
-                        c.monthly[0].year, c.monthly[0].month, 1, tzinfo=timezone.utc
-                    )
-                    if c.monthly and s in c.monthly[0].services
-                    else None,
-                )
-            )
-
-            # Monthly building average
-            sensors.append(
-                MijnIstaSensor(
-                    coordinator,
-                    cuid,
-                    f"svc{sid}_month_building_avg",
-                    f"{label} Month Avg",
-                    unit,
-                    dc,
-                    SensorStateClass.MEASUREMENT,
-                    value_fn=lambda c, s=sid: (
-                        c.monthly[0].services[s].building_average
-                        if c.monthly and s in c.monthly[0].services
-                        else None
-                    ),
-                    attrs_fn=lambda c, s=sid: {
-                        "month": f"{c.monthly[0].year}-{c.monthly[0].month:02d}"
-                        if c.monthly
-                        else None,
-                    }
-                    if c.monthly
-                    else {},
-                )
-            )
-
-            # Per physical meter, latest month
-            for dev in month_svc.device_consumptions:
-                sensors.append(
-                    MijnIstaSensor(
-                        coordinator,
-                        cuid,
-                        f"svc{sid}_dev{dev.meter_id}_month",
-                        f"{label} {dev.serial_nr} Month",
-                        unit,
-                        dc,
-                        SensorStateClass.TOTAL,
-                        value_fn=lambda c, s=sid, did=dev.meter_id: next(
+                    value_fn=lambda c, s=sid, did=dev.meter_id: (
+                        next(
                             (
                                 d.c_value
-                                for d in c.monthly[0].services[s].device_consumptions
+                                for d in me.services[s].device_consumptions
                                 if d.meter_id == did
                             ),
                             None,
                         )
-                        if c.monthly and s in c.monthly[0].services
-                        else None,
-                        attrs_fn=lambda c, s=sid, did=dev.meter_id: next(
+                        if (me := _find_month(c.monthly, s)) is not None
+                        else None
+                    ),
+                    attrs_fn=lambda c, s=sid, did=dev.meter_id: (
+                        next(
                             (
                                 d.as_dict()
-                                for d in c.monthly[0].services[s].device_consumptions
+                                for d in me.services[s].device_consumptions
                                 if d.meter_id == did
                             ),
                             {},
                         )
-                        if c.monthly and s in c.monthly[0].services
-                        else {},
-                        last_reset_fn=lambda c, s=sid: datetime(
-                            c.monthly[0].year,
-                            c.monthly[0].month,
-                            1,
-                            tzinfo=timezone.utc,
-                        )
-                        if c.monthly and s in c.monthly[0].services
-                        else None,
-                    )
+                        if (me := _find_month(c.monthly, s)) is not None
+                        else {}
+                    ),
+                    last_reset_fn=lambda c, s=sid: (
+                        datetime(me.year, me.month, 1, tzinfo=timezone.utc)
+                        if (me := _find_month(c.monthly, s)) is not None
+                        else None
+                    ),
                 )
+            )
 
     # ── average temperature (per billing period, from KNMI via ista) ────────
     sensors.append(
