@@ -20,6 +20,14 @@ _CONSUMPTION_AVERAGES = "/api/Values/ConsumptionAverages"
 
 _TIMEOUT = aiohttp.ClientTimeout(total=30)
 
+# MonthValues streams data in shards; poll until hs >= sh.
+_MONTH_SHARD_MAX_POLLS = 15
+_MONTH_SHARD_DELAY = 2  # seconds between shard polls
+
+# Transient server errors that warrant a retry with backoff.
+_RETRY_STATUSES = {425, 503}
+_MAX_RETRIES = 3  # retries after the first attempt (4 total)
+
 
 class MijnIstaAuthError(Exception):
     """Raised when credentials are rejected by mijn.ista.nl."""
@@ -97,12 +105,26 @@ class MijnIstaAPI:
         return await self._post(_USER_VALUES, {})
 
     async def get_month_values(self, cuid: str) -> dict[str, Any]:
-        """POST /api/Consumption/MonthValues.
+        """POST /api/Consumption/MonthValues, polling until all shards are loaded.
 
-        Returns full monthly history for all available years, broken down
-        per service and per physical device.
+        The API streams data in shards (hs = loaded, sh = total). We poll
+        every 2 seconds until hs >= sh, up to 15 times.
         """
-        return await self._post(_MONTH_VALUES, {"Cuid": cuid})
+        data = await self._post(_MONTH_VALUES, {"Cuid": cuid})
+
+        for _ in range(_MONTH_SHARD_MAX_POLLS):
+            sh = data.get("sh", 0)
+            hs = data.get("hs", 0)
+            if sh == 0 or hs >= sh:
+                break
+            _LOGGER.debug(
+                "mijn.ista.nl: MonthValues loading shard %d/%d, waiting %ds",
+                hs, sh, _MONTH_SHARD_DELAY,
+            )
+            await asyncio.sleep(_MONTH_SHARD_DELAY)
+            data = await self._post(_MONTH_VALUES, {"Cuid": cuid})
+
+        return data
 
     async def get_consumption_values(
         self, cuid: str, billing_period: dict[str, Any]
@@ -141,27 +163,58 @@ class MijnIstaAPI:
         if refreshed := data.get("JWT"):
             self._jwt = refreshed
 
-    async def _post(self, path: str, extra: dict[str, Any]) -> dict[str, Any]:
-        """POST with one automatic re-authentication retry on HTTP 401."""
-        body = self._body(extra)
+    async def _refresh_jwt(self) -> None:
+        """Refresh JWT via /api/Authorization/JWTRefresh.
+
+        Falls back to a full re-authentication if the refresh endpoint fails.
+        """
         try:
             async with self._session.post(
-                f"{BASE_URL}{path}", json=body, timeout=_TIMEOUT
+                f"{BASE_URL}{_JWT_REFRESH}",
+                json={"JWT": self._jwt, "LANG": self._lang},
+                timeout=_TIMEOUT,
             ) as resp:
-                if resp.status == 401:
-                    _LOGGER.debug("mijn.ista.nl: JWT expired, re-authenticating")
-                    await self.authenticate()
-                    body["JWT"] = self._jwt
-                    # Retry once with fresh JWT
-                    async with self._session.post(
-                        f"{BASE_URL}{path}", json=body, timeout=_TIMEOUT
-                    ) as retry:
-                        retry.raise_for_status()
-                        data: dict[str, Any] = await retry.json()
-                        self._absorb_jwt(data)
-                        return data
-                resp.raise_for_status()
-                data = await resp.json()
+                if resp.status == 200:
+                    data = await resp.json()
+                    if new_jwt := data.get("JWT"):
+                        self._jwt = new_jwt
+                        _LOGGER.debug("mijn.ista.nl: JWT refreshed via JWTRefresh")
+                        return
+        except (aiohttp.ClientError, asyncio.TimeoutError):
+            pass
+        _LOGGER.debug("mijn.ista.nl: JWTRefresh failed, falling back to full re-auth")
+        await self.authenticate()
+
+    async def _post(self, path: str, extra: dict[str, Any]) -> dict[str, Any]:
+        """POST with exponential-backoff retry on 425/503 and re-auth on 401."""
+        url = f"{BASE_URL}{path}"
+        try:
+            for attempt in range(_MAX_RETRIES + 1):
+                async with self._session.post(
+                    url, json=self._body(extra), timeout=_TIMEOUT
+                ) as resp:
+                    if resp.status in _RETRY_STATUSES and attempt < _MAX_RETRIES:
+                        wait = 3 * (attempt + 1)
+                        _LOGGER.debug(
+                            "mijn.ista.nl: HTTP %d on %s, retry %d in %ds",
+                            resp.status, path, attempt + 1, wait,
+                        )
+                        await asyncio.sleep(wait)
+                        continue
+                    if resp.status == 401:
+                        _LOGGER.debug("mijn.ista.nl: JWT expired, refreshing")
+                        await self._refresh_jwt()
+                        async with self._session.post(
+                            url, json=self._body(extra), timeout=_TIMEOUT
+                        ) as retry:
+                            retry.raise_for_status()
+                            data: dict[str, Any] = await retry.json()
+                            self._absorb_jwt(data)
+                            return data
+                    resp.raise_for_status()
+                    data = await resp.json()
+                    self._absorb_jwt(data)
+                    return data
         except MijnIstaAuthError:
             raise
         except MijnIstaConnectionError:
@@ -170,6 +223,4 @@ class MijnIstaAPI:
             raise MijnIstaConnectionError(str(exc)) from exc
         except (aiohttp.ClientError, asyncio.TimeoutError) as exc:
             raise MijnIstaConnectionError(str(exc)) from exc
-
-        self._absorb_jwt(data)
-        return data
+        raise MijnIstaConnectionError(f"Service unavailable after retries: {path}")
