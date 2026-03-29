@@ -9,7 +9,7 @@ from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .api import MijnIstaAPI
+from mijn_ista_api import MijnIstaAPI
 from .coordinator import MijnIstaCoordinator
 
 PLATFORMS = [Platform.SENSOR]

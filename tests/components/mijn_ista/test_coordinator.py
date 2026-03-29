@@ -10,7 +10,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ConfigEntryAuthFailed
 from homeassistant.helpers.update_coordinator import UpdateFailed
 
-from custom_components.mijn_ista.api import MijnIstaAuthError, MijnIstaConnectionError
+from mijn_ista_api import MijnIstaAuthError, MijnIstaConnectionError
 
 from custom_components.mijn_ista.const import CONF_UPDATE_INTERVAL, DOMAIN
 from custom_components.mijn_ista.coordinator import (

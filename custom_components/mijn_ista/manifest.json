@@ -5,6 +5,7 @@
   "config_flow": true,
   "documentation": "https://github.com/aalaei/ha-mijn-ista",
   "iot_class": "cloud_polling",
+  "requirements": ["mijn-ista-api==0.1.1"],
   "issue_tracker": "https://github.com/aalaei/ha-mijn-ista/issues",
   "version": "1.0.0"
 }

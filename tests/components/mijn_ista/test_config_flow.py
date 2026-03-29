@@ -11,7 +11,7 @@ from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 
-from custom_components.mijn_ista.api import MijnIstaAuthError, MijnIstaConnectionError
+from mijn_ista_api import MijnIstaAuthError, MijnIstaConnectionError
 from custom_components.mijn_ista.const import CONF_UPDATE_INTERVAL, DOMAIN
 
 from .conftest import MOCK_USER_VALUES

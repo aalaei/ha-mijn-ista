@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import aiohttp
 import pytest
 
-from custom_components.mijn_ista.api import MijnIstaAPI, MijnIstaAuthError, MijnIstaConnectionError
+from mijn_ista_api import MijnIstaAPI, MijnIstaAuthError, MijnIstaConnectionError
 
 
 # ---------------------------------------------------------------------------
