@@ -20,13 +20,15 @@ from homeassistant.const import (
     UnitOfVolume,
 )
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.device_registry import DeviceInfo
+from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
 from .const import DOMAIN, MANUFACTURER, SERVICE_NAME_TRANSLATIONS
 from .coordinator import CustomerData, MijnIstaCoordinator
+
+PARALLEL_UPDATES = 0
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -121,6 +123,7 @@ class MijnIstaSensor(CoordinatorEntity, SensorEntity):
             name="ista NL",
             manufacturer=MANUFACTURER,
             model=model,
+            entry_type=DeviceEntryType.SERVICE,
             configuration_url="https://mijn.ista.nl",
         )
 
