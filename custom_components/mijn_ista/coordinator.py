@@ -324,18 +324,30 @@ class MijnIstaCoordinator(DataUpdateCoordinator):
                     periods[0] if periods else None,
                 )
 
+                avg_data: dict[str, Any] = {"Averages": []}
                 if cur_period:
-                    month_data, avg_data = await asyncio.gather(
-                        self.api.get_month_values(cuid),
-                        self.api.get_consumption_averages(
+                    try:
+                        avg_data = await self.api.get_consumption_averages(
                             cuid,
                             cur_period["s"][:10],
                             cur_period["e"][:10],
-                        ),
+                        )
+                    except MijnIstaConnectionError:
+                        _LOGGER.warning(
+                            "mijn.ista.nl: consumption averages unavailable for %s",
+                            cuid,
+                        )
+
+                try:
+                    async with asyncio.timeout(60):
+                        month_data = await self.api.get_month_values(cuid)
+                except (MijnIstaConnectionError, TimeoutError):
+                    _LOGGER.warning(
+                        "mijn.ista.nl: monthly data unavailable for %s, "
+                        "month sensors will show unavailable until next update",
+                        cuid,
                     )
-                else:
-                    month_data = await self.api.get_month_values(cuid)
-                    avg_data = {"Averages": []}
+                    month_data = {}
 
                 result[cuid] = _parse_customer(cus, month_data, avg_data)
                 _LOGGER.debug(
