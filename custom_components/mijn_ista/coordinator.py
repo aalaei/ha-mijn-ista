@@ -300,10 +300,10 @@ class MijnIstaCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self) -> dict[str, CustomerData]:
         try:
-            async with asyncio.timeout(150):
+            async with asyncio.timeout(100):
                 return await self._fetch_all()
         except TimeoutError as exc:
-            raise UpdateFailed("mijn.ista.nl data fetch timed out after 150s") from exc
+            raise UpdateFailed("mijn.ista.nl data fetch timed out after 100s") from exc
 
     async def _fetch_all(self) -> dict[str, CustomerData]:
         try:
