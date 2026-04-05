@@ -300,10 +300,10 @@ class MijnIstaCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self) -> dict[str, CustomerData]:
         try:
-            async with asyncio.timeout(120):
+            async with asyncio.timeout(150):
                 return await self._fetch_all()
         except TimeoutError as exc:
-            raise UpdateFailed("mijn.ista.nl data fetch timed out after 120s") from exc
+            raise UpdateFailed("mijn.ista.nl data fetch timed out after 150s") from exc
 
     async def _fetch_all(self) -> dict[str, CustomerData]:
         try:
@@ -339,9 +339,8 @@ class MijnIstaCoordinator(DataUpdateCoordinator):
                         )
 
                 try:
-                    async with asyncio.timeout(60):
-                        month_data = await self.api.get_month_values(cuid)
-                except (MijnIstaConnectionError, TimeoutError):
+                    month_data = await self.api.get_month_values(cuid)
+                except MijnIstaConnectionError:
                     _LOGGER.warning(
                         "mijn.ista.nl: monthly data unavailable for %s, "
                         "month sensors will show unavailable until next update",
