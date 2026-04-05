@@ -6,6 +6,6 @@
   "documentation": "https://github.com/aalaei/ha-mijn-ista",
   "iot_class": "cloud_polling",
   "issue_tracker": "https://github.com/aalaei/ha-mijn-ista/issues",
-  "requirements": ["mijn-ista-api==0.1.3"],
+  "requirements": ["mijn-ista-api==0.1.4"],
   "version": "1.0.1"
 }
