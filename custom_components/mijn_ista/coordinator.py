@@ -300,6 +300,13 @@ class MijnIstaCoordinator(DataUpdateCoordinator):
 
     async def _async_update_data(self) -> dict[str, CustomerData]:
         try:
+            async with asyncio.timeout(120):
+                return await self._fetch_all()
+        except TimeoutError as exc:
+            raise UpdateFailed("mijn.ista.nl data fetch timed out after 120s") from exc
+
+    async def _fetch_all(self) -> dict[str, CustomerData]:
+        try:
             await self.api.authenticate()
             user_data = await self.api.get_user_values()
 
