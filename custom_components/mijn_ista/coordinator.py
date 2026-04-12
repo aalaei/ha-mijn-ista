@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
@@ -288,6 +288,10 @@ class MijnIstaCoordinator(DataUpdateCoordinator):
         api: MijnIstaAPI,
     ) -> None:
         self.api = api
+        # Use quick MonthValues polling on the very first fetch so HA startup
+        # is not blocked for a full minute. Subsequent scheduled updates use
+        # full polling for complete history.
+        self._first_refresh_done = False
         super().__init__(
             hass=hass,
             logger=_LOGGER,
@@ -339,7 +343,9 @@ class MijnIstaCoordinator(DataUpdateCoordinator):
                         )
 
                 try:
-                    month_data = await self.api.get_month_values(cuid)
+                    month_data = await self.api.get_month_values(
+                        cuid, quick=not self._first_refresh_done
+                    )
                 except MijnIstaConnectionError:
                     _LOGGER.warning(
                         "mijn.ista.nl: monthly data unavailable for %s, "
@@ -355,6 +361,7 @@ class MijnIstaCoordinator(DataUpdateCoordinator):
                     cuid,
                 )
 
+            self._first_refresh_done = True
             return result
 
         except MijnIstaAuthError as exc:
