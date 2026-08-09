@@ -9,7 +9,7 @@ from homeassistant.core import HomeAssistant
 
 from . import MijnIstaConfigEntry
 
-_REDACT = {"password", "JWT", "username"}
+_REDACT = {"password", "username"}
 
 
 async def async_get_config_entry_diagnostics(

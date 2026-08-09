@@ -1,4 +1,4 @@
 pytest-homeassistant-custom-component
 pytest-asyncio
 pytest-cov
-mijn-ista-api==0.1.1
+mijn-ista-api==0.2.0
