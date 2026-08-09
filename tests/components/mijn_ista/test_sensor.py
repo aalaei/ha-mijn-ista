@@ -19,6 +19,7 @@ from custom_components.mijn_ista.sensor import (
     _find_month,
     _parse_dt,
     _translate_service,
+    async_setup_entry,
 )
 
 from .conftest import MOCK_AVG_VALUES, MOCK_MONTH_VALUES, MOCK_USER_VALUES
@@ -419,3 +420,78 @@ class TestExtraStateAttributes:
         temp_prev = next(s for s in sensors if s._attr_name == "Temperature Previous")
         # Temperature Previous has no attrs_fn
         assert temp_prev.extra_state_attributes == {}
+
+
+# ---------------------------------------------------------------------------
+# Stale per-meter Month sensor cleanup
+# ---------------------------------------------------------------------------
+
+
+class TestRemoveStaleDeviceMonthSensors:
+    """ista dropped per-device breakdown from MonthValues; orphaned
+    "<meter> Month" entities left behind from before that change must be
+    removed from the entity registry, not just left showing Unavailable.
+    """
+
+    async def test_removes_entity_no_longer_produced(self, hass: HomeAssistant):
+        from unittest.mock import MagicMock
+
+        from homeassistant.helpers import entity_registry as er
+        from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+        entry = MockConfigEntry(domain=DOMAIN, data={}, options={})
+        entry.add_to_hass(hass)
+
+        ent_reg = er.async_get(hass)
+        stale = ent_reg.async_get_or_create(
+            "sensor",
+            DOMAIN,
+            f"{DOMAIN}_test-cuid-abc123_svc6_dev999999_month",
+            config_entry=entry,
+        )
+        kept_annual = ent_reg.async_get_or_create(
+            "sensor",
+            DOMAIN,
+            f"{DOMAIN}_test-cuid-abc123_svc6_dev999999_annual",
+            config_entry=entry,
+        )
+
+        coord = MagicMock()
+        coord.hass = hass
+        coord.data = {"test-cuid-abc123": _make_customer_data()}
+        entry.runtime_data = coord
+
+        await async_setup_entry(hass, entry, MagicMock())
+
+        assert ent_reg.async_get(stale.entity_id) is None
+        assert ent_reg.async_get(kept_annual.entity_id) is not None
+
+    async def test_keeps_entity_still_produced_this_session(self, hass: HomeAssistant):
+        """A per-meter month entity that IS still produced must not be touched."""
+        from unittest.mock import MagicMock
+
+        from homeassistant.helpers import entity_registry as er
+        from pytest_homeassistant_custom_component.common import MockConfigEntry
+
+        customer = _make_customer_data()
+        sensors = _build_sensors(MagicMock(hass=hass), "test-cuid-abc123", customer)
+        still_produced = next(
+            s for s in sensors if s._attr_unique_id.endswith("_month") and "_dev" in s._attr_unique_id
+        )
+
+        entry = MockConfigEntry(domain=DOMAIN, data={}, options={})
+        entry.add_to_hass(hass)
+
+        ent_reg = er.async_get(hass)
+        existing = ent_reg.async_get_or_create(
+            "sensor", DOMAIN, still_produced._attr_unique_id, config_entry=entry
+        )
+
+        coord = MagicMock()
+        coord.hass = hass
+        coord.data = {"test-cuid-abc123": customer}
+        entry.runtime_data = coord
+
+        await async_setup_entry(hass, entry, MagicMock())
+
+        assert ent_reg.async_get(existing.entity_id) is not None

@@ -22,6 +22,10 @@ from homeassistant.const import (
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceEntryType, DeviceInfo
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers.entity_registry import (
+    async_entries_for_config_entry,
+    async_get as async_get_entity_registry,
+)
 from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.util import dt as dt_util
 
@@ -509,3 +513,30 @@ async def async_setup_entry(
             entities.extend(built)
 
     async_add_entities(entities)
+    _remove_stale_device_month_sensors(hass, config_entry, entities)
+
+
+def _remove_stale_device_month_sensors(
+    hass: HomeAssistant,
+    config_entry: ConfigEntry,
+    entities: list[MijnIstaSensor],
+) -> None:
+    """Remove per-meter Month sensors ista's API no longer supplies data for.
+
+    ista dropped the per-device breakdown (DeviceConsumptions) from
+    MonthValues entirely, so these entities (unique_id suffix
+    "..._dev<meter_id>_month") can never be recreated — left alone they'd
+    sit in the registry as permanently Unavailable.
+    """
+    current_unique_ids = {e.unique_id for e in entities}
+    ent_reg = async_get_entity_registry(hass)
+    for entry in async_entries_for_config_entry(ent_reg, config_entry.entry_id):
+        if entry.unique_id in current_unique_ids:
+            continue
+        if "_dev" not in entry.unique_id or not entry.unique_id.endswith("_month"):
+            continue
+        _LOGGER.info(
+            "Removing %s: ista no longer provides per-meter monthly data",
+            entry.entity_id,
+        )
+        ent_reg.async_remove(entry.entity_id)
