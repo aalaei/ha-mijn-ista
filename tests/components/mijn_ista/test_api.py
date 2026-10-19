@@ -108,7 +108,7 @@ def _login_sequence(*, credentials_ok: bool = True) -> tuple[list, list]:
     get_responses.append(_FakeResponse(200, text=HOME_PAGE_HTML))  # GET /Home
     post_responses = [
         _FakeResponse(200, text=FORM_POST_CALLBACK_HTML),  # POST credentials
-        _FakeResponse(302),  # POST signin-oidc callback
+        _FakeResponse(200),  # POST signin-oidc callback (redirects followed)
     ]
     return get_responses, post_responses
 

@@ -7,7 +7,7 @@ import logging
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME, Platform
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.aiohttp_client import async_create_clientsession
 
 from mijn_ista_api import MijnIstaAPI
 from .coordinator import MijnIstaCoordinator
@@ -37,7 +37,7 @@ async def async_migrate_entry(hass: HomeAssistant, config_entry: ConfigEntry) ->
 
 async def async_setup_entry(hass: HomeAssistant, entry: MijnIstaConfigEntry) -> bool:
     """Set up mijn.ista.nl from a config entry."""
-    session = async_get_clientsession(hass)
+    session = async_create_clientsession(hass)
     # Derive API language from the HA language setting.
     api_lang = "nl-NL" if hass.config.language.startswith("nl") else "en-GB"
     api = MijnIstaAPI(

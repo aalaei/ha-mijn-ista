@@ -10,7 +10,7 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.const import CONF_PASSWORD, CONF_USERNAME
 from homeassistant.core import callback
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers.aiohttp_client import async_create_clientsession
 from homeassistant.helpers.selector import (
     NumberSelector,
     NumberSelectorConfig,
@@ -53,7 +53,7 @@ async def _validate_credentials(
     hass: Any, username: str, password: str
 ) -> tuple[str | None, str | None]:
     """Authenticate and return (display_name, error_key)."""
-    session = async_get_clientsession(hass)
+    session = async_create_clientsession(hass)
     api = MijnIstaAPI(session, username, password)
     try:
         await api.authenticate()
