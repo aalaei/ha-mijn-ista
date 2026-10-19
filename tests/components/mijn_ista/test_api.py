@@ -11,10 +11,12 @@ responses rather than mocking a single endpoint.
 from __future__ import annotations
 
 import asyncio
+from http.cookies import SimpleCookie
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import aiohttp
 import pytest
+from yarl import URL
 
 from mijn_ista_api import MijnIstaAPI, MijnIstaAuthError, MijnIstaConnectionError
 
@@ -82,6 +84,7 @@ class _FakeSession:
     def __init__(self, get_responses=None, post_responses=None):
         self._get_responses = list(get_responses or [])
         self._post_responses = list(post_responses or [])
+        self.cookie_jar: list = []
         self.get_calls: list[tuple] = []
         self.post_calls: list[tuple] = []
 
@@ -173,6 +176,80 @@ class TestAuthenticate:
         api = MijnIstaAPI(session, "u", "p")
         with pytest.raises(MijnIstaConnectionError):
             await api.authenticate()
+
+    async def test_callback_redirect_chain_is_followed(self):
+        get_r, post_r = _login_sequence()
+        post_r[1] = _FakeResponse(302, headers={"Location": "/home/login"})
+        get_r[3:3] = [
+            _FakeResponse(302, headers={"Location": "/Home"}),  # GET /home/login
+            _FakeResponse(200, text=HOME_PAGE_HTML),  # GET /Home (end of chain)
+        ]
+        session = _FakeSession(get_r, post_r)
+        api = MijnIstaAPI(session, "u", "p")
+        await api.authenticate()
+        hops = [url for url, _ in session.get_calls[3:5]]
+        assert hops == ["https://mijn.ista.nl/home/login", "https://mijn.ista.nl/Home"]
+        assert all("cookies" in kwargs for _, kwargs in session.get_calls[3:])
+
+    async def test_callback_chain_ending_in_401_raises_connection_error(self):
+        get_r, post_r = _login_sequence()
+        post_r[1] = _FakeResponse(302, headers={"Location": "/home/login"})
+        get_r[3] = _FakeResponse(401)  # GET /home/login without a valid session
+        session = _FakeSession(get_r, post_r)
+        api = MijnIstaAPI(session, "u", "p")
+        with pytest.raises(MijnIstaConnectionError, match="HTTP 401"):
+            await api.authenticate()
+
+
+# ---------------------------------------------------------------------------
+# Session cookies
+# ---------------------------------------------------------------------------
+
+
+class TestCookiesFor:
+    """mijn.ista.nl's chunked session cookie exceeds aiohttp's Cookie-header cap."""
+
+    @staticmethod
+    def _jar_with_session_cookies() -> aiohttp.CookieJar:
+        jar = aiohttp.CookieJar()
+        chunk = "x" * 4000
+        jar.update_cookies(
+            {
+                ".AspNetCore.Cookies": "chunks-3",
+                ".AspNetCore.CookiesC1": chunk,
+                ".AspNetCore.CookiesC2": chunk,
+                ".AspNetCore.CookiesC3": chunk,
+            },
+            URL("https://mijn.ista.nl/signin-oidc"),
+        )
+        jar.update_cookies({"KEYCLOAK_IDENTITY": "kc"}, URL("https://login.ista.com/"))
+        return jar
+
+    async def test_returns_all_chunks_for_mijn_ista(self):
+        session = MagicMock()
+        session.cookie_jar = self._jar_with_session_cookies()
+        api = MijnIstaAPI(session, "u", "p")
+        cookies = api._cookies_for("https://mijn.ista.nl/api/Values/UserValues")
+        assert set(cookies) == {
+            ".AspNetCore.Cookies",
+            ".AspNetCore.CookiesC1",
+            ".AspNetCore.CookiesC2",
+            ".AspNetCore.CookiesC3",
+        }
+
+    async def test_respects_cookie_path(self):
+        session = MagicMock()
+        jar = aiohttp.CookieJar()
+        jar.update_cookies(
+            SimpleCookie(".AspNetCore.Correlation.abc=N; Path=/signin-oidc"),
+            URL("https://mijn.ista.nl/signin-oidc"),
+        )
+        session.cookie_jar = jar
+        api = MijnIstaAPI(session, "u", "p")
+        assert api._cookies_for("https://mijn.ista.nl/Home") == {}
+        assert ".AspNetCore.Correlation.abc" in api._cookies_for(
+            "https://mijn.ista.nl/signin-oidc"
+        )
 
 
 # ---------------------------------------------------------------------------
