@@ -15,6 +15,7 @@ from custom_components.mijn_ista.const import DOMAIN
 from custom_components.mijn_ista.coordinator import _parse_customer
 from custom_components.mijn_ista.sensor import (
     MijnIstaSensor,
+    _avg_state_class,
     _build_sensors,
     _find_month,
     _parse_dt,
@@ -197,11 +198,17 @@ class TestBuildSensors:
         current = next(s for s in sensors if s._attr_name == "Heating Current")
         assert current._attr_state_class == SensorStateClass.TOTAL
 
-    def test_building_avg_sensor_uses_measurement(self, coordinator):
+    @pytest.mark.parametrize("name", ["Heating Building Avg", "Heating Month Avg"])
+    def test_avg_sensor_with_device_class_has_no_state_class(self, coordinator, name):
+        # energy/water device classes only allow total/total_increasing/None.
         customer = _make_customer_data()
         sensors = _build_sensors(coordinator, "test-cuid-abc123", customer)
-        avg = next(s for s in sensors if s._attr_name == "Heating Building Avg")
-        assert avg._attr_state_class == SensorStateClass.MEASUREMENT
+        avg = next(s for s in sensors if s._attr_name == name)
+        assert avg._attr_device_class == SensorDeviceClass.ENERGY
+        assert avg._attr_state_class is None
+
+    def test_avg_state_class_without_device_class_is_measurement(self):
+        assert _avg_state_class(None) == SensorStateClass.MEASUREMENT
 
     def test_monthly_sensors_present(self, coordinator):
         customer = _make_customer_data()

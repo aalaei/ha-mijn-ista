@@ -68,6 +68,16 @@ def _ha_device_class(api_unit: str) -> SensorDeviceClass | None:
     return _DEVICE_CLASS_MAP.get(api_unit)
 
 
+def _avg_state_class(device_class: SensorDeviceClass | None) -> SensorStateClass | None:
+    """State class for a building-average sensor.
+
+    Averages are reference values, not meter readings. HA only allows the
+    energy/water device classes with a total state class (they feed the
+    Energy dashboard), so those averages get no state class at all.
+    """
+    return None if device_class else SensorStateClass.MEASUREMENT
+
+
 def _parse_dt(date_str: str) -> datetime | None:
     """Parse an API ISO date string to a UTC-aware datetime, or None."""
     if not date_str:
@@ -272,7 +282,7 @@ def _build_sensors(
                     f"{label} Building Avg",
                     unit,
                     dc,
-                    SensorStateClass.MEASUREMENT,
+                    _avg_state_class(dc),
                     value_fn=lambda c, s=sid: c.building_averages.get(s),
                 )
             )
@@ -401,7 +411,7 @@ def _build_sensors(
                 f"{label} Month Avg",
                 unit,
                 dc,
-                SensorStateClass.MEASUREMENT,
+                _avg_state_class(dc),
                 value_fn=lambda c, s=sid: (
                     me.services[s].building_average
                     if (me := _find_month(c.monthly, s)) is not None
